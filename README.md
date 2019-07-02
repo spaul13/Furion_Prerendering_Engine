@@ -10,4 +10,8 @@ Drag and Drop the viking village demo scene into the Hierarchy
 
 Create an empty GameObject named "Capture Panorama" and add the CapturePanorama script (can be found inside 360 Panorama capture) to it 
 
-Create another empty Gameobject name it as Probe Camera
+Create another empty Gameobject name it as "ProbeCamera".
+
+Add Rigidbody component to it and uncheck Use Gravity
+
+
