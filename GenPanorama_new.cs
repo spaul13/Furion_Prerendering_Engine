@@ -4,27 +4,24 @@ using UnityEngine;
 using System.IO;
 using System;
 
-
-//change the coroutine runningl() to running() in order to change from fixed radius to the adaptive radius and change the radius_intend to change the fixed radius value
-
-public class GenPanorama : MonoBehaviour
+public class GenPanorama_new : MonoBehaviour
 {
     string parentObjName = "Content";
     string terrainName = "Terrain/terrain_01/terrain_near_01";
     string radius_file = "H:/cut_datas/begin_exp/new_radius_viking/0605/logexp_viking_amend_newradius_16_new.txt"; // 
-    string location_file = "H:/test_split_soccer/log_1216_playerloc_1.txt";//"H:/test_split_soccer/location_viking_103019_16.txt"; //"H:/CubeMaps/human_study_locations/hs_viking_1.txt";//"C:/Users/spaul/Downloads/filter_exp13_gafps_133458.txt"; //"C:/Users/spaul/Downloads/filter_exp14_gafps_175082.txt"; //"E:/cut_datas/new_exp/location_cut_split/loc_remov_zero/viking_loc_12_locpat_nonzero.txt"; // 
+    string location_file = "H:/test_split_soccer/log_1216_playerloc_4.txt";//"H:/test_split_soccer/location_viking_103019_16.txt"; //"H:/CubeMaps/human_study_locations/hs_viking_1.txt";//"C:/Users/spaul/Downloads/filter_exp13_gafps_133458.txt"; //"C:/Users/spaul/Downloads/filter_exp14_gafps_175082.txt"; //"E:/cut_datas/new_exp/location_cut_split/loc_remov_zero/viking_loc_12_locpat_nonzero.txt"; // 
     string camUnityPath = "ProbeCamera/MainCamera";
     float cut = 16f;
     float boundHeight = 100f;
     int output_flag = 1;
     float radius_intend = 8f;
 
+
     double[] radius_array;
     double[] location_array;
     int index;
     bool captureframe;
     Rigidbody m_Rigidbody;
-
 
     Vector3 terrainCenter;
     Vector3 terrainMax;
@@ -34,23 +31,18 @@ public class GenPanorama : MonoBehaviour
     Bounds[] subBounds;
 
     Camera cam;
-    public KeyCode traverseKey = KeyCode.T;
-    int checkpointer;
 
-    Camera cam1;
-    GameObject camGos;
-    RenderTexture frameRenderTexture = null;
-    Texture2D tex;
-    int cameraWidth = 1920;
-    int cameraHeight = 1080;
-    uint[] cameraPixels = null;
+    int loopNum;
+
+    string fp = "";
 
     void Awake()
     {
         m_Rigidbody = GetComponent<Rigidbody>();
         cam = GameObject.Find(camUnityPath).GetComponent<Camera>();
+        fp = "E:/test_split_fps/viking/";
 
-        FindTerrainDim();
+        FindTerrainDiml();
         cutUnit = new Vector3((terrainMax.x - terrainMin.x) / cut, (terrainMax.y - terrainMin.y) / cut, (terrainMax.z - terrainMin.z) / cut);
         subBounds = new Bounds[(int)(cut * cut)];
         for (int zIndex = 0; zIndex < cut; zIndex++)
@@ -71,114 +63,51 @@ public class GenPanorama : MonoBehaviour
         GetRadiusFromFile();
         ReadFile();
 
+        loopNum = 0;
         index = 1;
         captureframe = true;
-
-
-        camGos = new GameObject("ManCamera");
-        camGos.hideFlags = HideFlags.HideAndDontSave;
-        camGos.AddComponent<Camera>();
-        cam1 = camGos.GetComponent<Camera>();
-        cam1.enabled = false;
-
-        frameRenderTexture = new RenderTexture(cameraWidth, cameraHeight, /*depth*/24, RenderTextureFormat.ARGB32);
-        cameraPixels = new uint[cameraWidth * cameraHeight + 1];
     }
 
     // Update is called once per frame
     void Update()
     {
-        //bool traverseKeyPressed = Input.GetKeyDown(traverseKey);
-        //if (traverseKeyPressed)
+        if (index + 6 <= location_array.Length)
         {
-            if (index + 6 <= location_array.Length)
+            //for capturing panoramic frames
+            if (captureframe)
             {
-                //for capturing panoramic frames
-                //checkpointer = GameObject.Find("Capture Panorama").GetComponent<CapturePanorama.CapturePanorama>().checkpoint;
-                //if ((captureframe) && ((checkpointer == 1) || ((int)location_array[index - 1] == 1)))
-                {
-                    //GameObject.Find("Capture Panorama").GetComponent<CapturePanorama.CapturePanorama>().checkpoint = 0;
-                    //captureframe = false;
-                    //to store the panoramic frame
-                    //StartCoroutine(runningl());
-                    //In order to capture the normal frame
-                    StartCoroutine(runningframe());
-                }
+                captureframe = false;
+                StartCoroutine(running());
             }
         }
     }
 
-
-    //for a fixed radius capturing the normal frame
-    IEnumerator runningframe()
-    {
-        int zIndex = 0;
-        int xIndex = 0;
-        bool isInCut = false;
-        Vector3 pos = new Vector3((float)location_array[index], (float)location_array[index + 1], (float)location_array[index + 2]);
-        if (index < location_array.Length)
-        {
-            m_Rigidbody.MovePosition(pos);
-            Debug.Log("\n the position is = " + pos);
-        }
-
-
-        // Debug.Log("radius_array: len " + radius_array.Length + " , " + (zIndex * cut * 5 + xIndex * 5 + 3) + ", " + zIndex + ", " + xIndex);
-        //cam.nearClipPlane = 0.01f;
-        //cam.farClipPlane = 1000f;
-        yield return new WaitForSeconds(0.1f);
-        //string filenameBase = ChangeFilename();
-        //yield return new WaitForSeconds(1f);
-        Camera[] cameras = GetCaptureCameras();
-        cam1.CopyFrom(cameras[0]);
-        cam1.targetTexture = frameRenderTexture;
-        tex = RTImage(cam1);
-        SaveFrame(tex, (int)(location_array[index - 1]-1));
-        index += 7;
-    }
-    //for a fixed radius
-    IEnumerator runningl()
-    {
-        int zIndex = 0;
-        int xIndex = 0;
-        bool isInCut = false;
-        Vector3 pos = new Vector3((float)location_array[index], (float)location_array[index + 1], (float)location_array[index + 2]);
-        if (index < location_array.Length)
-        {
-            m_Rigidbody.MovePosition(pos);
-            Debug.Log("\n the position is = " + pos);
-        }
-
-
-        // Debug.Log("radius_array: len " + radius_array.Length + " , " + (zIndex * cut * 5 + xIndex * 5 + 3) + ", " + zIndex + ", " + xIndex);
-        cam.nearClipPlane = radius_intend;
-        cam.farClipPlane = 1000f;
-        string filenameBase = ChangeFilename();
-        Debug.Log("\n current file name = " + filenameBase);
-        yield return new WaitForSeconds(1f);
-        GameObject.Find("Capture Panorama").GetComponent<CapturePanorama.CapturePanorama>().CaptureScreenshotAsync(filenameBase);
-        index += 7;
-        captureframe = true;
-        yield return null;
-    }
-    //for adaptive radius
     IEnumerator running()
     {
         int zIndex = 0;
         int xIndex = 0;
         bool isInCut = false;
         Vector3 pos = new Vector3((float)location_array[index], (float)location_array[index + 1], (float)location_array[index + 2]);
+        //Vector3 loc = new Vector3();
+        //pos.y += 50f;
+        //AlignWithTerrain(pos, out loc); //rot is not needed
+        //Debug.Log("\n the previous pos = " +pos +", modified loc = " +loc);
+
         if (index < location_array.Length)
         {
+            //m_Rigidbody.MovePosition(pos);
             m_Rigidbody.MovePosition(pos);
-            Debug.Log("\n the position is = " + pos);
+            // Debug.Log("\n the position is = " + pos);
         }
 
+        cam.nearClipPlane = 10f;
+        cam.farClipPlane = 1000f;
+        /*
         for (zIndex = 0; zIndex < cut; zIndex++)
         {
             for (xIndex = 0; xIndex < cut; xIndex++)
             {
-                if (subBounds[(int)(zIndex * cut + xIndex)].Contains(pos))
+                if (subBounds[(int)(zIndex * cut + xIndex)].Contains(pos)) //pos
                 {
                     isInCut = true;
                     break;
@@ -192,35 +121,24 @@ public class GenPanorama : MonoBehaviour
         }
         else
         {
-            // Debug.Log("radius_array: len " + radius_array.Length + " , " + (zIndex * cut * 5 + xIndex * 5 + 3) + ", " + zIndex + ", " + xIndex);
-            cam.nearClipPlane = 0.01f;// (float)radius_array[(int)(zIndex * cut * 5 + xIndex * 5 + 3)];
+            if ((float)radius_array[(int)(zIndex * cut * 5 + xIndex * 5 + 3)] >= 90f)
+                cam.nearClipPlane = (float)radius_array[(int)(zIndex * cut * 5 + xIndex * 5 + 3)] - 40f;
+            else
+                cam.nearClipPlane = (float)radius_array[(int)(zIndex * cut * 5 + xIndex * 5 + 3)];
+            cam.farClipPlane = 1000f;
+            Debug.Log("*****modified loc " + pos + " radius " + (float)radius_array[(int)(zIndex * cut * 5 + xIndex * 5 + 3)] + ","+ cam.nearClipPlane + ", " + zIndex + ", " + xIndex);
             string filenameBase = ChangeFilename();
             yield return new WaitForSeconds(1f);
             GameObject.Find("CapturePanorama").GetComponent<CapturePanorama.CapturePanorama>().CaptureScreenshotAsync(filenameBase);
+            //File.AppendAllText(fp + "logexp_panoramicindexing_0123_racing_2.txt", "[ position = (" + m_Rigidbody.position.x + "," + m_Rigidbody.position.y + "," + m_Rigidbody.position.z + ") ,index =" + loopNum + ", radius =" + cam.nearClipPlane + " ]\n");
         }
+        */
+        string filenameBase = ChangeFilename();
+        yield return new WaitForSeconds(1f);
+        GameObject.Find("Capture Panorama").GetComponent<CapturePanorama.CapturePanorama>().CaptureScreenshotAsync(filenameBase);
         index += 7;
         captureframe = true;
         yield return null;
-    }
-
-    String ChangeFilename()
-    {
-        int timestamp = (int)location_array[index - 1] - 1;
-        //long timestamp = (long)location_array[index - 1];
-        string filenameBase = null;
-        Debug.Log("\n from filenameBase, index = " + index + ", location array[index-1]  = " + location_array[index - 1]);
-        if (output_flag == 1)
-        {
-            // v1: put in the same folder
-            filenameBase = "sj_" + timestamp.ToString();
-            //filenameBase = String.Format("{0}_{1:D3}", "sj", timestamp);
-        }
-        else if (output_flag == 2)
-        {
-            // v2: for saving multiple folders in parallel
-            filenameBase = "cj_" + timestamp.ToString();
-        }
-        return filenameBase;
     }
 
     // for soccer game with only one terrain
@@ -249,12 +167,6 @@ public class GenPanorama : MonoBehaviour
             terrainMax = terrainBounds.max;
             terrainMin = terrainBounds.min;
         }
-
-        /* Only needed for pick random location
-         * Component terrainMeshCollider = terrainObj.GetComponent<MeshCollider>();
-        if (terrainMeshCollider == null) terrainObj.AddComponent<MeshCollider>();
-
-        colliders.Add((Collider)terrainMeshCollider);*/
     }
 
     void FindTerrainDiml()
@@ -299,12 +211,6 @@ public class GenPanorama : MonoBehaviour
                 terrainMax = terrainBounds.max;
                 terrainMin = terrainBounds.min;
             }
-
-            /* Only needed for pick random location
-             * Component terrainMeshCollider = terrainObj.GetComponent<MeshCollider>();
-            if (terrainMeshCollider == null) terrainObj.AddComponent<MeshCollider>();
-
-            colliders.Add((Collider)terrainMeshCollider);*/
         }
 
     }
@@ -348,42 +254,41 @@ public class GenPanorama : MonoBehaviour
         radius_array = list.ToArray();
     }
 
-    
-
-    void SaveFrame(Texture2D tex, int loopNum)
+    String ChangeFilename()
     {
-        byte[] bytes = tex.EncodeToPNG();
-        //byte[] bytes = tex.EncodeToJPG();
-        //byte[] bytes = tex.EncodeToJPG(100);
-        UnityEngine.Object.Destroy(tex);
-        string filenameBase = String.Format("{0}_{1:D3}", "H:/CubeMaps/asplos_final/final_frame_1/sj", loopNum);
-        File.WriteAllBytes(filenameBase + ".png", bytes);
-        //File.WriteAllBytes(filenameBase + ".jpg", bytes);
-    }
-
-    Texture2D RTImage(Camera cam)
-    {
-        RenderTexture currentRT = RenderTexture.active;
-        RenderTexture.active = cam.targetTexture;
-        cam.Render();
-        Texture2D image = new Texture2D(cam.targetTexture.width, cam.targetTexture.height);
-        image.ReadPixels(new Rect(0, 0, cam.targetTexture.width, cam.targetTexture.height), 0, 0);
-        image.Apply();
-        RenderTexture.active = currentRT;
-        return image;
-    }
-
-    public virtual Camera[] GetCaptureCameras()
-    {
-        Camera[] cameras = Camera.allCameras;
-
-        var finalCameras = new List<Camera>();
-        foreach (Camera c in cameras)
+        long timestamp = (long)location_array[index - 1]-1;
+        string filenameBase = null;
+        if (output_flag == 1)
         {
-            finalCameras.Add(c);
+            // v1: put in the same folder
+            filenameBase = String.Format("{0}_{1:D3}", "sj", timestamp);
+            //filenameBase = "sj_" + timestamp.ToString();
+            //filenameBase = "sj_" + loopNum.ToString();
+            loopNum++;
         }
-
-        return finalCameras.ToArray();
+        else if (output_flag == 2)
+        {
+            // v2: for saving multiple folders in parallel
+            filenameBase = "cj_" + timestamp.ToString();
+        }
+        return filenameBase;
     }
 
+
+    void AlignWithTerrain(Vector3 randLoc, out Vector3 loc)
+    {
+        RaycastHit hit;
+        Debug.Log("\n Inside AlignWithTerrain: the randLoc is = " + randLoc);
+        if (Physics.Raycast(randLoc, Vector3.down, out hit))
+        {
+            loc = hit.point;
+            //rot = new Vector3(hit.normal.x, 0f, hit.normal.z);
+        }
+        else
+        {
+            Debug.Log("FindRadius: cannot align with terrain for location " + randLoc + " for loopNum " + loopNum);
+            loc = new Vector3();
+            //rot = new Vector3();
+        }
+    }
 }
